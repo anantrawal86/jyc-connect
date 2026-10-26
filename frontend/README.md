@@ -1,24 +1,13 @@
-# Pixel Perfect Replica
+# JYC Connect frontend
 
-Implement exactly the screenshot and nothing else
+React and TypeScript frontend for the JYC Connect campus community platform.
 
-This project was built with [Lovable](https://lovable.dev).
+## Run locally
 
-## Build with Lovable
+1. Install Node.js 20 or newer.
+2. Install dependencies with `npm install`.
+3. Start the frontend with `npm run dev`.
 
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/0abc1ea6-87d7-43ab-9d61-a488e09ca515).
+The frontend runs at `http://localhost:5173` by default. To connect it to a local API, set `VITE_API_URL=http://localhost:4000` in `frontend/.env.local`. Do not put server secrets or database credentials in frontend environment variables.
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
-```
+See the repository's `README.md` for backend, database, and deployment setup.
