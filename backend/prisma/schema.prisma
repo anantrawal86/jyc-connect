@@ -1,0 +1,175 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  COORDINATOR
+  ADMIN
+}
+enum AssetSlot {
+  HERO
+  LOGIN
+  REGISTER
+  ABOUT
+  CAMPUS
+}
+
+model User {
+  id String @id @default(cuid())
+  fullName String
+  email String @unique
+  rollNumber String @unique
+  department String @default("Not specified")
+  passwordHash String
+  role Role @default(STUDENT)
+  emailVerifiedAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  registrations EventRegistration[]
+}
+model OtpChallenge {
+  id String @id @default(cuid())
+  email String
+  fullName String
+  rollNumber String
+  department String @default("Not specified")
+  otpHash String
+  attempts Int @default(0)
+  expiresAt DateTime
+  resendAfter DateTime
+  consumedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([email, createdAt])
+}
+model RegistrationGrant {
+  id String @id @default(cuid())
+  tokenHash String @unique
+  email String
+  fullName String
+  rollNumber String
+  department String @default("Not specified")
+  expiresAt DateTime
+  consumedAt DateTime?
+  createdAt DateTime @default(now())
+}
+model Hub {
+  id String @id
+  name String
+  tagline String
+  description String
+  icon String
+  councilGroup String
+  imageUrl String?
+  registrationFormUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  events JycEvent[]
+  galleryImages GalleryImage[]
+}
+model JycEvent {
+  id String @id @default(cuid())
+  title String
+  hubId String
+  hub Hub @relation(fields: [hubId], references: [id], onDelete: Restrict)
+  category String
+  date DateTime
+  startTime String
+  endTime String
+  venue String
+  summary String
+  description String
+  highlights String[]
+  imageUrl String?
+  registrationFormUrl String?
+  published Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  registrations EventRegistration[]
+  @@index([date, published])
+}
+model EventRegistration {
+  id String @id @default(cuid())
+  userId String
+  eventId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event JycEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@unique([userId, eventId])
+}
+model CouncilMember {
+  id String @id
+  name String
+  designation String
+  group String
+  enrollment String @unique
+  photoUrl String?
+  sortOrder Int @default(0)
+}
+model FacultyCoordinator {
+  id String @id
+  name String
+  designation String
+  photoUrl String?
+  updatedAt DateTime @updatedAt
+}
+model Announcement {
+  id String @id @default(cuid())
+  title String
+  body String?
+  date DateTime @default(now())
+  published Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([published, date])
+}
+model GalleryImage {
+  id String @id @default(cuid())
+  hubId String?
+  hub Hub? @relation(fields: [hubId], references: [id], onDelete: Cascade)
+  url String
+  alt String
+  caption String?
+  category String?
+  storageKey String
+  mimeType String
+  sizeBytes Int
+  createdAt DateTime @default(now())
+  @@index([hubId, createdAt])
+}
+model MediaAsset {
+  id String @id @default(cuid())
+  kind String
+  entityId String
+  url String
+  alt String
+  storageKey String
+  mimeType String
+  sizeBytes Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([kind, entityId])
+}
+model SiteAsset {
+  id String @id @default(cuid())
+  slot AssetSlot @unique
+  url String
+  storageKey String
+  alt String?
+  mimeType String
+  sizeBytes Int?
+  updatedAt DateTime @updatedAt
+}
+model ContactMessage {
+  id String @id @default(cuid())
+  name String
+  email String
+  message String
+  ipHash String
+  createdAt DateTime @default(now())
+  @@index([createdAt])
+}
