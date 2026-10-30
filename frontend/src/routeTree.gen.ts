@@ -22,6 +22,8 @@ import { Route as EventsIndexRouteImport } from './routes/events.index'
 import { Route as EventsEventIdRouteImport } from './routes/events.$eventId'
 import { Route as HubsIndexRouteImport } from './routes/hubs.index'
 import { Route as HubsHubIdRouteImport } from './routes/hubs.$hubId'
+import { Route as StoriesIndexRouteImport } from './routes/stories.index'
+import { Route as StoriesStoryIdRouteImport } from './routes/stories.$storyId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -88,6 +90,16 @@ const HubsHubIdRoute = HubsHubIdRouteImport.update({
   path: '/hubs/$hubId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StoriesIndexRoute = StoriesIndexRouteImport.update({
+  id: '/stories/',
+  path: '/stories/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StoriesStoryIdRoute = StoriesStoryIdRouteImport.update({
+  id: '/stories/$storyId',
+  path: '/stories/$storyId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -101,8 +113,10 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/events/$eventId': typeof EventsEventIdRoute
   '/hubs/$hubId': typeof HubsHubIdRoute
+  '/stories/$storyId': typeof StoriesStoryIdRoute
   '/events/': typeof EventsIndexRoute
   '/hubs/': typeof HubsIndexRoute
+  '/stories/': typeof StoriesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -116,8 +130,10 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/events/$eventId': typeof EventsEventIdRoute
   '/hubs/$hubId': typeof HubsHubIdRoute
+  '/stories/$storyId': typeof StoriesStoryIdRoute
   '/events': typeof EventsIndexRoute
   '/hubs': typeof HubsIndexRoute
+  '/stories': typeof StoriesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -132,8 +148,10 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/events/$eventId': typeof EventsEventIdRoute
   '/hubs/$hubId': typeof HubsHubIdRoute
+  '/stories/$storyId': typeof StoriesStoryIdRoute
   '/events/': typeof EventsIndexRoute
   '/hubs/': typeof HubsIndexRoute
+  '/stories/': typeof StoriesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -149,8 +167,10 @@ export interface FileRouteTypes {
     | '/register'
     | '/events/$eventId'
     | '/hubs/$hubId'
+    | '/stories/$storyId'
     | '/events/'
     | '/hubs/'
+    | '/stories/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -164,8 +184,10 @@ export interface FileRouteTypes {
     | '/register'
     | '/events/$eventId'
     | '/hubs/$hubId'
+    | '/stories/$storyId'
     | '/events'
     | '/hubs'
+    | '/stories'
   id:
     | '__root__'
     | '/'
@@ -179,8 +201,10 @@ export interface FileRouteTypes {
     | '/register'
     | '/events/$eventId'
     | '/hubs/$hubId'
+    | '/stories/$storyId'
     | '/events/'
     | '/hubs/'
+    | '/stories/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -195,8 +219,10 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   EventsEventIdRoute: typeof EventsEventIdRoute
   HubsHubIdRoute: typeof HubsHubIdRoute
+  StoriesStoryIdRoute: typeof StoriesStoryIdRoute
   EventsIndexRoute: typeof EventsIndexRoute
   HubsIndexRoute: typeof HubsIndexRoute
+  StoriesIndexRoute: typeof StoriesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -292,6 +318,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HubsHubIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/stories/': {
+      id: '/stories/'
+      path: '/stories'
+      fullPath: '/stories/'
+      preLoaderRoute: typeof StoriesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/stories/$storyId': {
+      id: '/stories/$storyId'
+      path: '/stories/$storyId'
+      fullPath: '/stories/$storyId'
+      preLoaderRoute: typeof StoriesStoryIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -307,8 +347,10 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   EventsEventIdRoute: EventsEventIdRoute,
   HubsHubIdRoute: HubsHubIdRoute,
+  StoriesStoryIdRoute: StoriesStoryIdRoute,
   EventsIndexRoute: EventsIndexRoute,
   HubsIndexRoute: HubsIndexRoute,
+  StoriesIndexRoute: StoriesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

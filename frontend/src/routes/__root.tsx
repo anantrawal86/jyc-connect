@@ -9,6 +9,7 @@ import {
   type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { type ReactNode } from "react";
+import { ThemeProvider, ThemeToggle } from "@/components/theme-provider";
 
 import appCss from "../styles.css?url";
 
@@ -113,9 +114,12 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
-    <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+        <Outlet />
+        <ThemeToggle className="fixed bottom-5 right-5 z-40 h-12 w-12 rounded-full border-brand/20 shadow-lift" />
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }

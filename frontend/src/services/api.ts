@@ -47,6 +47,19 @@ export type AdminAnnouncement = {
   date: string;
   published: boolean;
 };
+export type JycStoryPhoto = { id: string; url: string; alt: string; createdAt: string };
+export type JycStory = {
+  id: string;
+  title: string;
+  category: string;
+  summary: string;
+  content: string;
+  date: string;
+  coverImageUrl: string | null;
+  homepageOrder: number | null;
+  published: boolean;
+  photos: JycStoryPhoto[];
+};
 export type AdminOverview = {
   students: number;
   events: number;
@@ -91,11 +104,14 @@ export const api = {
   getCouncil: (): Promise<CouncilMember[]> => http("/api/council"),
   getFacultyCoordinator: (): Promise<FacultyCoordinator> => http("/api/faculty-coordinator"),
   getAnnouncements: (): Promise<Announcement[]> => http("/api/announcements"),
+  getStories: (): Promise<JycStory[]> => http("/api/stories"),
+  getStory: (id: string): Promise<JycStory> => http(`/api/stories/${encodeURIComponent(id)}`),
   getGallery: (hubId?: string): Promise<GalleryImage[]> =>
     http(`/api/gallery${hubId ? `?hubId=${encodeURIComponent(hubId)}` : ""}`),
   getAdminOverview: (): Promise<AdminOverview> => http("/api/admin/overview"),
   getAdminEvents: (): Promise<AdminEvent[]> => http("/api/admin/events"),
   getAdminAnnouncements: (): Promise<AdminAnnouncement[]> => http("/api/admin/announcements"),
+  getAdminStories: (): Promise<JycStory[]> => http("/api/admin/stories"),
   getAdminGallery: (): Promise<GalleryImage[]> => http("/api/admin/gallery"),
   createHub: (body: Omit<Hub, "imageUrl"> & { imageUrl?: string | null }): Promise<Hub> =>
     http("/api/admin/hubs", { method: "POST", body: JSON.stringify(body) }),
@@ -140,6 +156,20 @@ export const api = {
     }),
   deleteAnnouncement: (id: string): Promise<{ success: true }> =>
     http(`/api/admin/announcements/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  createStory: (body: Omit<JycStory, "id" | "coverImageUrl" | "homepageOrder" | "photos">): Promise<JycStory> =>
+    http("/api/admin/stories", { method: "POST", body: JSON.stringify(body) }),
+  updateStory: (id: string, body: Partial<Omit<JycStory, "id" | "coverImageUrl" | "homepageOrder" | "photos">>): Promise<JycStory> =>
+    http(`/api/admin/stories/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(body) }),
+  setStoryHomepageOrder: (id: string, homepageOrder: number | null): Promise<JycStory> =>
+    http(`/api/admin/stories/${encodeURIComponent(id)}/homepage-order`, { method: "PATCH", body: JSON.stringify({ homepageOrder }) }),
+  deleteStory: (id: string): Promise<{ success: true }> =>
+    http(`/api/admin/stories/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  uploadStoryCover: (id: string, file: File): Promise<{ url: string; sizeBytes: number; mimeType: string }> =>
+    http(`/api/admin/stories/${encodeURIComponent(id)}/cover`, { method: "POST", headers: { "Content-Type": file.type }, body: file }),
+  uploadStoryPhoto: (id: string, file: File, alt?: string): Promise<JycStoryPhoto> =>
+    http(`/api/admin/stories/${encodeURIComponent(id)}/photos${alt ? `?alt=${encodeURIComponent(alt)}` : ""}`, { method: "POST", headers: { "Content-Type": file.type }, body: file }),
+  deleteStoryPhoto: (id: string, photoId: string): Promise<{ success: true }> =>
+    http(`/api/admin/stories/${encodeURIComponent(id)}/photos/${encodeURIComponent(photoId)}`, { method: "DELETE" }),
   deleteGalleryImage: (id: string): Promise<{ success: true }> =>
     http(`/api/admin/gallery/${encodeURIComponent(id)}`, { method: "DELETE" }),
   getSiteAsset: (slot: string): Promise<{ url: string; alt?: string | null }> =>

@@ -102,6 +102,21 @@ api.get('/faculty-coordinator', asyncRoute(async (req, res) => {
   res.json(coordinator);
 }));
 api.get('/announcements', asyncRoute(async (req, res) => { const rows = await prisma.announcement.findMany({ where: { published: true }, orderBy: { date: 'desc' }, select: { id: true, title: true, body: true, date: true } }); res.json(rows.map((a) => ({ ...a, date: a.date.toISOString().slice(0, 10) }))); }));
+const storyInclude = { photos: { orderBy: { createdAt: 'asc' }, select: { id: true, url: true, alt: true, createdAt: true } } };
+const storyDto = (story) => ({
+  id: story.id, title: story.title, category: story.category, summary: story.summary, content: story.content,
+  date: story.date.toISOString().slice(0, 10), coverImageUrl: story.coverImageUrl, homepageOrder: story.homepageOrder,
+  published: story.published, createdAt: story.createdAt, updatedAt: story.updatedAt, photos: story.photos,
+});
+api.get('/stories', asyncRoute(async (req, res) => {
+  const stories = await prisma.jycStory.findMany({ where: { published: true }, include: storyInclude, orderBy: [{ homepageOrder: { sort: 'asc', nulls: 'last' } }, { date: 'desc' }] });
+  res.json(stories.map(storyDto));
+}));
+api.get('/stories/:id', asyncRoute(async (req, res) => {
+  const story = await prisma.jycStory.findFirst({ where: { id: req.params.id, published: true }, include: storyInclude });
+  if (!story) throw new HttpError(404, 'NOT_FOUND', 'Story not found.');
+  res.json(storyDto(story));
+}));
 api.get('/dashboard', authenticate, asyncRoute(async (req, res) => {
   const announcements = await prisma.announcement.findMany({ where: { published: true }, orderBy: { date: 'desc' }, take: 10, select: { id: true, title: true, body: true, date: true } });
   res.json({ user: req.user, announcements: announcements.map((a) => ({ ...a, date: a.date.toISOString().slice(0, 10) })) });
@@ -138,6 +153,71 @@ api.get('/admin/events', authenticate, allowRoles('ADMIN'), asyncRoute(async (re
 api.get('/admin/announcements', authenticate, allowRoles('ADMIN'), asyncRoute(async (req, res) => {
   const rows = await prisma.announcement.findMany({ orderBy: { date: 'desc' } });
   res.json(rows.map((item) => ({ ...item, date: item.date.toISOString().slice(0, 10) })));
+}));
+api.get('/admin/stories', authenticate, allowRoles('ADMIN'), asyncRoute(async (req, res) => {
+  const stories = await prisma.jycStory.findMany({ include: storyInclude, orderBy: { date: 'desc' } });
+  res.json(stories.map(storyDto));
+}));
+const storyInput = z.object({ title: z.string().trim().min(4).max(200), category: z.string().trim().min(2).max(80).default('Campus Life'), summary: z.string().trim().min(10).max(500), content: z.string().trim().min(20).max(50000), date: z.coerce.date(), published: z.boolean().default(false) });
+api.post('/admin/stories', authenticate, allowRoles('ADMIN'), validate(storyInput), asyncRoute(async (req, res) => {
+  const story = await prisma.jycStory.create({ data: req.body, include: storyInclude });
+  res.status(201).json(storyDto(story));
+}));
+api.patch('/admin/stories/:id', authenticate, allowRoles('ADMIN'), validate(storyInput.partial()), asyncRoute(async (req, res) => {
+  const story = await prisma.jycStory.update({ where: { id: req.params.id }, data: { ...req.body, ...(req.body.published === false ? { homepageOrder: null } : {}) }, include: storyInclude });
+  res.json(storyDto(story));
+}));
+api.patch('/admin/stories/:id/homepage-order', authenticate, allowRoles('ADMIN'), validate(z.object({ homepageOrder: z.union([z.number().int().min(1).max(3), z.null()]) })), asyncRoute(async (req, res) => {
+  const updated = await prisma.$transaction(async (tx) => {
+    const current = await tx.jycStory.findUnique({ where: { id: req.params.id }, select: { id: true, published: true, homepageOrder: true } });
+    if (!current) throw new HttpError(404, 'NOT_FOUND', 'Story not found.');
+    const newOrder = req.body.homepageOrder;
+    if (newOrder !== null && !current.published) throw new HttpError(409, 'DRAFT_CANNOT_BE_PINNED', 'Publish this story before pinning it to the homepage.');
+    const occupant = newOrder === null ? null : await tx.jycStory.findUnique({ where: { homepageOrder: newOrder }, select: { id: true } });
+    const affectedIds = [current.id, ...(occupant && occupant.id !== current.id ? [occupant.id] : [])];
+    await tx.jycStory.updateMany({ where: { id: { in: affectedIds } }, data: { homepageOrder: null } });
+    const story = await tx.jycStory.update({ where: { id: current.id }, data: { homepageOrder: newOrder }, include: storyInclude });
+    if (occupant && occupant.id !== current.id && current.homepageOrder !== null) await tx.jycStory.update({ where: { id: occupant.id }, data: { homepageOrder: current.homepageOrder } });
+    return story;
+  });
+  res.json(storyDto(updated));
+}));
+api.delete('/admin/stories/:id', authenticate, allowRoles('ADMIN'), asyncRoute(async (req, res) => {
+  const story = await prisma.jycStory.findUnique({ where: { id: req.params.id }, include: { photos: true } });
+  if (!story) throw new HttpError(404, 'NOT_FOUND', 'Story not found.');
+  await prisma.jycStory.delete({ where: { id: story.id } });
+  await Promise.all([story.coverStorageKey, ...story.photos.map((photo) => photo.storageKey)].filter(Boolean).map((key) => removeLocalImage(key)));
+  res.json({ success: true });
+}));
+async function readStoryImage(req) {
+  const type = req.get('content-type');
+  if (!type?.startsWith('image/')) throw new HttpError(400, 'INVALID_IMAGE', 'Send an image with its image content type.');
+  const chunks = []; let size = 0;
+  for await (const chunk of req) { size += chunk.length; if (size > 8 * 1024 * 1024) throw new HttpError(413, 'IMAGE_TOO_LARGE', 'Image must be 8 MB or smaller.'); chunks.push(chunk); }
+  return { type, size, stored: await saveImage({ buffer: Buffer.concat(chunks), mimeType: type }) };
+}
+api.post('/admin/stories/:id/cover', authenticate, allowRoles('ADMIN'), asyncRoute(async (req, res) => {
+  const story = await prisma.jycStory.findUnique({ where: { id: req.params.id }, select: { id: true, coverStorageKey: true } });
+  if (!story) throw new HttpError(404, 'NOT_FOUND', 'Story not found.');
+  const { type, size, stored } = await readStoryImage(req);
+  await prisma.jycStory.update({ where: { id: story.id }, data: { coverImageUrl: stored.url, coverStorageKey: stored.key } });
+  if (story.coverStorageKey) await removeLocalImage(story.coverStorageKey);
+  res.status(201).json({ url: stored.url, sizeBytes: size, mimeType: type });
+}));
+api.post('/admin/stories/:id/photos', authenticate, allowRoles('ADMIN'), asyncRoute(async (req, res) => {
+  const story = await prisma.jycStory.findUnique({ where: { id: req.params.id }, select: { id: true } });
+  if (!story) throw new HttpError(404, 'NOT_FOUND', 'Story not found.');
+  if (await prisma.jycStoryPhoto.count({ where: { storyId: story.id } }) >= 20) throw new HttpError(409, 'PHOTO_LIMIT', 'A story can have up to 20 gallery photos.');
+  const { type, size, stored } = await readStoryImage(req);
+  const photo = await prisma.jycStoryPhoto.create({ data: { storyId: story.id, url: stored.url, storageKey: stored.key, mimeType: type, sizeBytes: size, alt: String(req.query.alt ?? 'JYC story photo').slice(0, 250) } });
+  res.status(201).json({ id: photo.id, url: photo.url, alt: photo.alt, createdAt: photo.createdAt });
+}));
+api.delete('/admin/stories/:id/photos/:photoId', authenticate, allowRoles('ADMIN'), asyncRoute(async (req, res) => {
+  const photo = await prisma.jycStoryPhoto.findFirst({ where: { id: req.params.photoId, storyId: req.params.id } });
+  if (!photo) throw new HttpError(404, 'NOT_FOUND', 'Story photo not found.');
+  await prisma.jycStoryPhoto.delete({ where: { id: photo.id } });
+  await removeLocalImage(photo.storageKey);
+  res.json({ success: true });
 }));
 const announcementInput = z.object({ title: z.string().trim().min(2).max(200), body: z.string().trim().max(10000).optional().nullable(), date: z.coerce.date().optional(), published: z.boolean().optional() });
 api.post('/admin/announcements', authenticate, allowRoles('ADMIN', 'COORDINATOR'), validate(announcementInput.extend({ published: z.boolean().default(false) })), asyncRoute(async (req, res) => res.status(201).json(await prisma.announcement.create({ data: req.body }))));

@@ -127,6 +127,34 @@ model Announcement {
   updatedAt DateTime @updatedAt
   @@index([published, date])
 }
+model JycStory {
+  id String @id @default(cuid())
+  title String
+  category String @default("Campus Life")
+  summary String
+  content String
+  date DateTime
+  coverImageUrl String?
+  coverStorageKey String?
+  homepageOrder Int? @unique
+  published Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  photos JycStoryPhoto[]
+  @@index([published, date])
+}
+model JycStoryPhoto {
+  id String @id @default(cuid())
+  storyId String
+  story JycStory @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  url String
+  storageKey String
+  mimeType String
+  sizeBytes Int
+  alt String
+  createdAt DateTime @default(now())
+  @@index([storyId, createdAt])
+}
 model GalleryImage {
   id String @id @default(cuid())
   hubId String?

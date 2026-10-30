@@ -15,6 +15,7 @@ const NAV = [
   { to: "/", label: "Home" },
   { to: "/hubs", label: "Hubs" },
   { to: "/events", label: "Events" },
+  { to: "/stories", label: "Stories" },
   { to: "/gallery", label: "Gallery" },
   { to: "/about", label: "About JYC" },
   { to: "/council", label: "Council" },
@@ -207,7 +208,55 @@ export function SectionTitle({ title, action }: { title: string; action?: ReactN
   );
 }
 
-export function AnnouncementCard({ title, body, date }: { title: string; body?: string | null | undefined; date: string }) {
+function splitAnnouncementBody(body?: string | null) {
+  const description: string[] = [];
+  const details: { label: string; value: string }[] = [];
+  for (const line of (body ?? "").split(/\r?\n/).map((part) => part.trim()).filter(Boolean)) {
+    const match = line.match(/^(Date|Venue)\s*[-:]?\s*(.+)$/i);
+    if (match?.[1] && match[2]) details.push({ label: match[1].toLowerCase() === "date" ? "Date" : "Venue", value: match[2] });
+    else description.push(line);
+  }
+  return { description, details };
+}
+
+export function AnnouncementCard({ title, body, date, featured = false }: { title: string; body?: string | null | undefined; date: string; featured?: boolean }) {
+  const { description, details } = splitAnnouncementBody(body);
+  if (featured) {
+    return (
+      <article className="announcement-feature interactive-card group relative isolate grid min-h-[150px] overflow-hidden rounded-xl border border-brand/15 bg-white p-4 shadow-card sm:p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:px-6">
+        <div aria-hidden="true" className="announcement-feature-glow pointer-events-none absolute -right-12 -top-20 -z-10 h-44 w-44 rounded-full bg-brand/15 blur-3xl transition-transform duration-700 group-hover:scale-125" />
+        <div className="relative max-w-3xl">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span className="inline-flex items-center gap-2 rounded-full bg-brand/10 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.14em] text-brand">
+              <Megaphone className="h-3.5 w-3.5" aria-hidden="true" /> JYC announcement
+            </span>
+            <time className="text-sm font-semibold text-muted-foreground">{formatDate(date)}</time>
+          </div>
+          <h3 className="announcement-feature-title mt-3 max-w-3xl font-display text-2xl font-extrabold leading-[1.05] tracking-[-0.045em] text-navy sm:text-3xl">{title}</h3>
+          {description.length > 0 && <p className="announcement-feature-description mt-2 max-w-2xl">{description.join(" ")}</p>}
+          {details.length > 0 && (
+            <div className="mt-3 grid max-w-2xl gap-2 sm:grid-cols-2">
+              {details.map((detail) => {
+                const isDate = detail.label.toLowerCase() === "date";
+                const DetailIcon = isDate ? CalendarDays : MapPin;
+                return (
+                  <div key={`${detail.label}-${detail.value}`} className="announcement-detail flex min-w-0 items-center gap-2.5 rounded-xl border border-brand/10 bg-white/80 px-3 py-2.5 shadow-sm">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand/10 text-brand"><DetailIcon className="h-4 w-4" aria-hidden="true" /></span>
+                    <span className="min-w-0"><span className="block text-[10px] font-extrabold uppercase tracking-[0.16em] text-brand/80">{detail.label}</span><span className="mt-0.5 block truncate font-semibold text-navy">{detail.value}</span></span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <div className="mt-3 h-1 w-12 rounded-full bg-gradient-to-r from-brand via-brand-soft to-transparent" aria-hidden="true" />
+        </div>
+        <div aria-hidden="true" className="announcement-feature-mark mt-4 hidden h-20 w-20 place-items-center rounded-full border border-brand/10 bg-brand/[0.04] text-brand/80 lg:mt-0 lg:grid">
+          <div className="grid h-14 w-14 place-items-center rounded-full border border-brand/15 bg-white/75 shadow-card"><Megaphone className="h-7 w-7" strokeWidth={1.25} /></div>
+        </div>
+      </article>
+    );
+  }
+
   return (
     <article className="interactive-card group relative isolate flex min-h-[220px] flex-col overflow-hidden rounded-[1.5rem] border border-brand/10 bg-card p-5 shadow-card sm:p-6">
       <div aria-hidden="true" className="pointer-events-none absolute -right-10 -top-12 -z-10 h-40 w-40 rounded-full bg-brand/10 blur-3xl transition-opacity group-hover:opacity-90" />
@@ -219,7 +268,15 @@ export function AnnouncementCard({ title, body, date }: { title: string; body?: 
       </div>
       <div className="mt-5 h-1 w-12 rounded-full bg-gradient-to-r from-brand to-brand-soft" aria-hidden="true" />
       <h3 className="mt-4 font-display text-xl font-bold leading-tight tracking-tight text-navy sm:text-[1.35rem]">{title}</h3>
-      {body && <p className="mt-3 line-clamp-4 whitespace-pre-wrap text-[15px] leading-7 text-muted-foreground">{body}</p>}
+      {description.length > 0 && <p className="announcement-card-message mt-3 line-clamp-4 whitespace-pre-wrap text-[15px] leading-7">{description.join(" ")}</p>}
+      {details.length > 0 && (
+        <div className="mt-auto grid gap-2 pt-5">
+          {details.map((detail) => {
+            const DetailIcon = detail.label === "Date" ? CalendarDays : MapPin;
+            return <div key={`${detail.label}-${detail.value}`} className="announcement-card-detail flex items-center gap-2.5 rounded-xl border border-brand/10 bg-brand/[0.035] px-3 py-2.5"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand/10 text-brand"><DetailIcon className="h-4 w-4" aria-hidden="true" /></span><span className="min-w-0"><span className="mr-2 text-[10px] font-extrabold uppercase tracking-[0.12em] text-brand">{detail.label}</span><span className="text-sm font-semibold text-navy">{detail.value}</span></span></div>;
+          })}
+        </div>
+      )}
     </article>
   );
 }
@@ -446,12 +503,13 @@ export function GalleryGrid({ hubId, limit, showFilters = true }: { hubId?: stri
                 className={`gallery-photo group relative block w-full cursor-zoom-in overflow-hidden border-0 bg-transparent p-0 text-left shadow-card transition duration-300 ease-out hover:-translate-y-1 hover:shadow-lift motion-reduce:animate-none motion-reduce:transition-none ${tileShapes[index % tileShapes.length]}`}
                 style={{ animationDelay: `${index * 75}ms` }}
               >
+                {g.category && <span className="gallery-category absolute left-3 top-3 z-[1] rounded-full border border-white/30 bg-navy/45 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white shadow-sm backdrop-blur-md">{g.category}</span>}
                 <Img
                   src={g.url}
                   alt={g.alt}
-                  className="h-full w-full transition-transform duration-700 ease-out group-hover:scale-110 motion-reduce:transition-none"
+                  className="h-full w-full transition-[filter,transform] duration-700 ease-out group-hover:scale-110 motion-reduce:transition-none"
                 />
-                <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-navy/85 via-navy/30 to-transparent px-4 pb-4 pt-10 text-left text-sm font-semibold text-white opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100">
+                <span className="gallery-caption absolute inset-x-0 bottom-0 translate-y-2 bg-gradient-to-t from-navy/90 via-navy/40 to-transparent px-4 pb-4 pt-12 text-left text-sm font-semibold text-white opacity-0 transition duration-300 group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100">
                   {g.caption || g.alt}
                 </span>
               </button>
@@ -559,7 +617,7 @@ export function Field({ id, label, error, ...props }: { id: string; label: strin
 export function AuthLayout({ title, subtitle, children, backgroundSlot = "login" }: { title: string; subtitle: string; children: ReactNode; backgroundSlot?: SiteImageSlot }) {
   const background = useSiteImage(backgroundSlot);
   return (
-    <div className="page-enter grid min-h-screen lg:grid-cols-2">
+    <div className="page-enter relative grid min-h-screen lg:grid-cols-2">
       <aside className="relative hidden overflow-hidden bg-gradient-navy p-10 text-navy-foreground lg:flex lg:flex-col lg:justify-between">
         {background && <img src={background} alt="" className="absolute inset-0 h-full w-full object-cover opacity-75" />}
         <div className="absolute inset-0 bg-gradient-to-br from-navy/55 via-navy/40 to-brand/45" />

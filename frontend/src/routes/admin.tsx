@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   ArrowLeft,
   Bell,
+  BookOpen,
   CalendarDays,
   Image,
   LayoutDashboard,
@@ -24,9 +25,10 @@ import {
   type AdminEvent,
   type AdminOverview,
   type GalleryImage,
+  type JycStory,
 } from "@/services/api";
 import type { Hub } from "@/data/devData";
-import { EmptyState, ErrorMessage, Field, formatDate, Img, Loading, Logo, RequiredMark } from "@/components/site";
+import { AnnouncementCard, EmptyState, ErrorMessage, Field, formatDate, Img, Loading, Logo, RequiredMark } from "@/components/site";
 import { meta } from "@/lib/meta";
 
 export const Route = createFileRoute("/admin")({
@@ -38,12 +40,13 @@ export const Route = createFileRoute("/admin")({
   component: AdminDashboard,
 });
 
-type Tab = "overview" | "events" | "hubs" | "announcements" | "media" | "site";
+type Tab = "overview" | "events" | "hubs" | "announcements" | "stories" | "media" | "site";
 const tabs: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "events", label: "Events", icon: CalendarDays },
   { id: "hubs", label: "Hubs", icon: Users },
   { id: "announcements", label: "Announcements", icon: Bell },
+  { id: "stories", label: "JYC Stories", icon: BookOpen },
   { id: "media", label: "Media library", icon: Image },
   { id: "site", label: "Site settings", icon: Settings },
 ];
@@ -76,6 +79,11 @@ function AdminDashboard() {
     queryFn: api.getAdminAnnouncements,
     enabled: profile.data?.role === "ADMIN",
   });
+  const stories = useQuery({
+    queryKey: ["admin", "stories"],
+    queryFn: api.getAdminStories,
+    enabled: profile.data?.role === "ADMIN",
+  });
   const gallery = useQuery({
     queryKey: ["admin", "gallery"],
     queryFn: api.getAdminGallery,
@@ -104,6 +112,11 @@ function AdminDashboard() {
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "The action could not be completed.");
     }
+  };
+  const runStoryAction = async (action: () => Promise<unknown>, message: string, keys: string[][] = []) => {
+    let succeeded = false;
+    await run(async () => { await action(); succeeded = true; }, message, keys);
+    return succeeded;
   };
   async function logout() {
     await api.logout();
@@ -254,6 +267,9 @@ function AdminDashboard() {
           {tab === "announcements" && (
             <AnnouncementsPanel items={announcements.data ?? []} onAction={run} />
           )}
+          {tab === "stories" && (
+            <StoriesPanel items={stories.data ?? []} onAction={runStoryAction} />
+          )}
           {tab === "media" && (
             <MediaPanel
               images={gallery.data ?? []}
@@ -281,7 +297,7 @@ function Panel({
   action?: ReactNode;
 }) {
   return (
-    <section className="interactive-card rounded-2xl border bg-card p-5 shadow-card sm:p-6">
+    <section className="interactive-card min-w-0 rounded-2xl border bg-card p-5 shadow-card sm:p-6">
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold">{title}</h2>
@@ -692,7 +708,7 @@ function HubsPanel({
     });
   }
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-2">
+    <div className="grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <Panel title="Existing hubs">
         {hubs.length ? (
           <div className="divide-y">
@@ -972,9 +988,9 @@ function AnnouncementsPanel({
     <div className="grid items-start gap-6 lg:grid-cols-2">
       <Panel title="Announcements" description="Drafts remain private until published.">
         {items.length ? (
-          <div className="divide-y">
+          <div className="grid gap-3">
             {items.map((item) => (
-              <article key={item.id} className="py-4">
+              <article key={item.id} className="rounded-2xl border bg-card p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-card sm:p-5">
                 <div className="flex items-center justify-between gap-3">
                   <p className="font-semibold">{item.title}</p>
                   <span
@@ -1017,7 +1033,7 @@ function AnnouncementsPanel({
         )}
       </Panel>
       <Panel title={editing ? "Edit announcement" : "New announcement"}>
-        <form onSubmit={(e) => void submit(e)} className="grid gap-3">
+        <form onSubmit={(e) => void submit(e)} className="grid min-w-0 gap-3">
           <Field
             id="announcement-title"
             label="Title"
@@ -1031,9 +1047,15 @@ function AnnouncementsPanel({
               rows={5}
               value={form.body}
               onChange={(e) => setForm({ ...form, body: e.target.value })}
-              className="rounded-lg border border-input bg-card px-3 py-2.5"
+              placeholder="Share the important news or invitation…"
+              className="min-h-28 w-full min-w-0 max-w-full resize-y rounded-xl border border-input bg-card px-3 py-3.5 leading-7"
             />
+            <span className="-mt-1 text-xs leading-5 text-muted-foreground">For event details, put each on its own line, like <span className="font-semibold text-foreground">Date - 24 Oct 2026</span> and <span className="font-semibold text-foreground">Venue - Main Ground</span>. They’ll appear as styled detail cards.</span>
           </label>
+          <div className="admin-announcement-preview min-w-0 overflow-hidden rounded-2xl border border-brand/10 bg-accent/30 p-3 sm:p-4">
+            <div className="mb-3 flex items-center gap-2 text-sm font-bold text-navy"><Bell className="h-4 w-4 text-brand" /> Public preview</div>
+            <AnnouncementCard title={form.title || "Your announcement title"} body={form.body} date={form.date} featured />
+          </div>
           <Field
             id="announcement-date"
             label="Date"
@@ -1060,6 +1082,123 @@ function AnnouncementsPanel({
               Cancel edit
             </button>
           )}
+        </form>
+      </Panel>
+    </div>
+  );
+}
+
+function StoriesPanel({
+  items,
+  onAction,
+}: {
+  items: JycStory[];
+  onAction: (action: () => Promise<unknown>, message: string, keys?: string[][]) => Promise<boolean>;
+}) {
+  const freshDate = () => new Date().toISOString().slice(0, 10);
+  const blankForm = () => ({ title: "", category: "Campus Life", summary: "", content: "", date: freshDate(), published: false });
+  const [form, setForm] = useState(blankForm);
+  const [editing, setEditing] = useState<JycStory | null>(null);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+  const [saving, setSaving] = useState(false);
+  const publishedCount = items.filter((item) => item.published).length;
+  function reset() { setEditing(null); setForm(blankForm()); setCoverFile(null); setPhotoFiles([]); }
+  function editStory(item: JycStory) {
+    setEditing(item);
+    setForm({ title: item.title, category: item.category, summary: item.summary, content: item.content, date: item.date, published: item.published });
+    setCoverFile(null);
+    setPhotoFiles([]);
+  }
+  function validImage(file: File) {
+    if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) { alert("Choose a JPEG, PNG, WebP, or GIF image."); return false; }
+    if (file.size > 8 * 1024 * 1024) { alert("Each image must be 8 MB or smaller."); return false; }
+    return true;
+  }
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!editing && !coverFile) { alert("Choose a cover image for this story."); return; }
+    setSaving(true);
+    let savedStory: JycStory | null = editing;
+    let uploadedPhotoCount = 0;
+    let coverUploaded = false;
+    const success = await onAction(async () => {
+      savedStory = editing
+        ? await api.updateStory(editing.id, form)
+        : await api.createStory(form);
+      if (coverFile && savedStory) { await api.uploadStoryCover(savedStory.id, coverFile); coverUploaded = true; }
+      for (const file of photoFiles) {
+        if (!savedStory) break;
+        await api.uploadStoryPhoto(savedStory.id, file, file.name.replace(/\.[^.]+$/, ""));
+        uploadedPhotoCount += 1;
+      }
+    }, editing ? "Story updated." : "Story created.", [["admin", "stories"], ["stories"]]);
+    setSaving(false);
+    if (success) reset();
+    else if (savedStory) {
+      setEditing(savedStory);
+      if (coverUploaded) setCoverFile(null);
+      if (uploadedPhotoCount) setPhotoFiles((files) => files.slice(uploadedPhotoCount));
+    }
+  }
+  return (
+    <div className="grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+      <Panel title="JYC Stories" description="Event recaps and campus highlights. Drafts stay private until published." action={<span className="rounded-full bg-brand/10 px-3 py-1.5 text-xs font-bold text-brand">{items.length} {items.length === 1 ? "story" : "stories"}</span>}>
+        {items.length ? <div className="grid gap-4 sm:grid-cols-2">
+          {items.map((item) => <article key={item.id} className="story-admin-card interactive-card group min-w-0 overflow-hidden rounded-2xl border bg-card shadow-card">
+            <div className="relative aspect-[16/9] overflow-hidden bg-gradient-navy">
+              {item.coverImageUrl ? <img src={item.coverImageUrl} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" /> : <BookOpen className="absolute left-1/2 top-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2 text-white/60" />}
+              <span className={`absolute right-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${item.published ? "bg-success text-white" : "bg-white/90 text-muted-foreground"}`}>{item.published ? "Live" : "Draft"}</span>
+            </div>
+            <div className="p-4">
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-brand">{item.category} · {formatDate(item.date)}</p>
+              <h3 className="mt-2 line-clamp-2 font-display text-lg font-bold leading-tight text-navy">{item.title}</h3>
+              <p className="mt-2 line-clamp-2 text-sm leading-5 text-muted-foreground">{item.summary}</p>
+              <label className="mt-3 grid gap-1 text-xs font-semibold text-muted-foreground">Homepage spot
+                <select disabled={!item.published} value={item.homepageOrder?.toString() ?? ""} onChange={(event) => { const value = event.currentTarget.value; void onAction(() => api.setStoryHomepageOrder(item.id, value ? Number(value) : null), value ? `Story assigned homepage spot ${value}.` : "Story unpinned from the homepage.", [["admin", "stories"], ["stories"]]); }} className="w-full rounded-lg border bg-card px-2.5 py-2 text-sm font-semibold text-navy disabled:cursor-not-allowed disabled:opacity-50">
+                  <option value="">Not pinned</option><option value="1">Pin to spot 1</option><option value="2">Pin to spot 2</option><option value="3">Pin to spot 3</option>
+                </select>
+              </label>
+              {!item.published && <p className="mt-1 text-[11px] text-muted-foreground">Publish the story before pinning it.</p>}
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button type="button" onClick={() => editStory(item)} className="rounded-lg border px-3 py-1.5 text-sm font-semibold hover:bg-accent">Edit</button>
+                {item.published && <Link to="/stories/$storyId" params={{ storyId: item.id }} className="rounded-lg border px-3 py-1.5 text-sm font-semibold text-brand hover:bg-accent">View</Link>}
+                <button type="button" onClick={() => { if (confirm(`Delete “${item.title}” and its photos?`)) void onAction(() => api.deleteStory(item.id), "Story deleted.", [["admin", "stories"], ["stories"]]); }} className="ml-auto rounded-lg border border-destructive/25 px-3 py-1.5 text-sm font-semibold text-destructive hover:bg-destructive/5">Delete</button>
+              </div>
+            </div>
+          </article>)}
+        </div> : <EmptyState title="No stories yet" text="Create a story to share what happened at a JYC event or around campus." />}
+      </Panel>
+      <Panel title={editing ? "Edit story" : "Create a story"} description="Write the recap, add photos, then publish when it’s ready.">
+        <form onSubmit={(event) => void submit(event)} className="grid min-w-0 gap-4">
+          <Field id="story-title" label="Story title" required value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="e.g. Freshers 2026: A day to remember" />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field id="story-category" label="Category" required value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} placeholder="Campus Life, Events…" />
+            <Field id="story-date" label="Event date" type="date" required value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} />
+          </div>
+          <label className="grid gap-1.5 text-sm font-medium">Short introduction
+            <textarea required minLength={10} maxLength={500} rows={2} value={form.summary} onChange={(event) => setForm({ ...form, summary: event.target.value })} placeholder="A short line that makes people want to read the story…" className="w-full min-w-0 resize-y rounded-xl border border-input bg-card px-3 py-3 leading-6" />
+            <span className="text-xs text-muted-foreground">{form.summary.length}/500 characters</span>
+          </label>
+          <label className="grid gap-1.5 text-sm font-medium">Full story
+            <textarea required minLength={20} maxLength={50000} rows={8} value={form.content} onChange={(event) => setForm({ ...form, content: event.target.value })} placeholder="Tell readers what happened, who took part, and what made the day special. Use a blank line between paragraphs." className="w-full min-w-0 resize-y rounded-xl border border-input bg-card px-3 py-3 leading-7" />
+            <span className="text-xs text-muted-foreground">Separate paragraphs with a blank line. {form.content.length}/50,000 characters.</span>
+          </label>
+          <label className="grid gap-1.5 text-sm font-medium">Cover image {editing?.coverImageUrl && <span className="font-normal text-muted-foreground">(upload a new image to replace it)</span>}
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" required={!editing && !coverFile} onChange={(event) => { const file = event.currentTarget.files?.[0]; if (file && validImage(file)) setCoverFile(file); event.currentTarget.value = ""; }} className="w-full min-w-0 rounded-xl border bg-card p-2 text-sm" />
+            <span className="text-xs text-muted-foreground">JPG, PNG, WebP, or GIF up to 8 MB. {coverFile ? `Selected: ${coverFile.name}` : "A cover is required."}</span>
+          </label>
+          <label className="grid gap-1.5 text-sm font-medium">Story photo gallery <span className="font-normal text-muted-foreground">(optional, up to 20 photos)</span>
+            <input type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => { const chosen = Array.from(event.currentTarget.files ?? []).filter(validImage); const remaining = Math.max(0, 20 - (editing?.photos.length ?? 0) - photoFiles.length); if (chosen.length > remaining) alert(`You can add ${remaining} more photo${remaining === 1 ? "" : "s"}.`); setPhotoFiles((files) => [...files, ...chosen.slice(0, remaining)]); event.currentTarget.value = ""; }} className="w-full min-w-0 rounded-xl border bg-card p-2 text-sm" />
+            <span className="text-xs text-muted-foreground">Each image can be up to 8 MB. {photoFiles.length ? `${photoFiles.length} new photo${photoFiles.length === 1 ? "" : "s"} selected.` : ""}</span>
+          </label>
+          {editing?.photos.length ? <div className="grid grid-cols-3 gap-2">{editing.photos.map((photo) => <div key={photo.id} className="relative aspect-square overflow-hidden rounded-xl"><img src={photo.url} alt={photo.alt} className="h-full w-full object-cover" /><button type="button" aria-label="Remove story photo" onClick={() => void onAction(() => api.deleteStoryPhoto(editing.id, photo.id), "Photo removed.", [["admin", "stories"], ["stories"]])} className="absolute right-1.5 top-1.5 rounded-full bg-navy/75 px-2 py-1 text-xs font-bold text-white">Remove</button></div>)}</div> : null}
+          <label className="flex items-center gap-2 rounded-xl border bg-accent/30 p-3 text-sm font-semibold"><input type="checkbox" checked={form.published} onChange={(event) => setForm({ ...form, published: event.target.checked })} /> Publish this story on the public site</label>
+          {!form.published && publishedCount > 0 && <p className="-mt-2 text-xs text-muted-foreground">Leave unchecked to save this as a private draft.</p>}
+          <div className="flex flex-wrap gap-3">
+            <button disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground shadow-lift transition hover:-translate-y-0.5 disabled:opacity-50"><BookOpen className="h-4 w-4" />{saving ? "Saving story…" : editing ? "Save changes" : form.published ? "Publish story" : "Save draft"}</button>
+            {editing && <button type="button" onClick={reset} className="rounded-xl border px-5 py-3 text-sm font-semibold">Cancel</button>}
+          </div>
         </form>
       </Panel>
     </div>

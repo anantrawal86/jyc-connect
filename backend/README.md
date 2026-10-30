@@ -43,6 +43,7 @@ All routes are under `/api`; errors use `{ "code": "...", "message": "..." }`.
 | GET | `/health` | Public | Liveness |
 | GET | `/hubs`, `/hubs/:id` | Public | Hub list/details |
 | GET | `/events?status=upcoming\|past`, `/events/:id` | Public | Published event list/details |
+| GET | `/stories`, `/stories/:id` | Public | Published JYC Stories and their photo galleries |
 | GET | `/council`, `/announcements` | Public | Official council and published notices |
 | GET | `/faculty-coordinator` | Public | Faculty coordinator profile for About JYC |
 | POST | `/auth/register/request-otp` | Public, rate-limited | Requires fullName, email, rollNumber; sends real email |
@@ -57,6 +58,10 @@ All routes are under `/api`; errors use `{ "code": "...", "message": "..." }`.
 | POST/PATCH | `/admin/hubs`, `/admin/hubs/:id` | ADMIN | Create/update hub details |
 | POST/PATCH | `/admin/events`, `/admin/events/:id` | ADMIN or COORDINATOR | Create/update event; publishing requires that event's Google Form URL |
 | POST/PATCH | `/admin/announcements`, `/admin/announcements/:id` | ADMIN or COORDINATOR (create); ADMIN (update) | Create, edit, and publish/unpublish announcements |
+| GET/POST/PATCH/DELETE | `/admin/stories`, `/admin/stories/:id` | ADMIN | Create event recaps/campus stories, edit drafts, publish, and delete |
+| PATCH | `/admin/stories/:id/homepage-order` | ADMIN | Pin/swap/unpin up to three published stories in homepage positions 1–3 |
+| POST | `/admin/stories/:id/cover`, `/admin/stories/:id/photos` | ADMIN | Upload/replace a story cover and add up to 20 story photos |
+| DELETE | `/admin/stories/:id/photos/:photoId` | ADMIN | Remove a story photo |
 | POST | `/admin/images?alt=...&caption=...&category=...` | ADMIN or COORDINATOR | Raw image body, max 8 MiB |
 | POST | `/admin/media/:kind/:id` | ADMIN or COORDINATOR | Attach uploaded image to `hub`, `event`, or `council` record; council ID is enrollment number |
 | PUT | `/admin/assets/:slot?alt=...` | ADMIN | Raw image body for site background |

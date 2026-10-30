@@ -1,6 +1,6 @@
 # JYC Connect integrated project
 
-This folder contains the existing React/Vite frontend and the Express/PostgreSQL/Prisma backend. The existing UI and logo are preserved. The frontend now reads hub, event, council, gallery, site background, announcement, and student dashboard data from backend endpoints; auth and registration use the backend's cookie and OTP flows.
+This folder contains the React/Vite frontend and the Express/PostgreSQL/Prisma backend. The site includes JYC hubs, events, council, gallery, announcements, and JYC Stories for event recaps and campus highlights. Public story publishing and photo management are available to authorized administrators; auth and registration use the backend's cookie and OTP flows.
 
 ## Local setup
 
