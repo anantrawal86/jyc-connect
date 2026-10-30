@@ -37,10 +37,10 @@ test('public health works and invalid registration payloads are rejected before 
   assert.equal(result.body.code, 'VALIDATION_ERROR');
 });
 
-test('protected event registration rejects anonymous users', async () => {
+test('event registrations use external forms; no backend registration route is exposed', async () => {
   const result = await request.post('/api/events/event-1/register');
-  assert.equal(result.status, 401);
-  assert.equal(result.body.code, 'UNAUTHENTICATED');
+  assert.equal(result.status, 404);
+  assert.equal(result.body.code, 'NOT_FOUND');
 });
 
 test('faculty coordinator editing and photo upload reject anonymous users', async () => {
